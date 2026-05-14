@@ -1,0 +1,32 @@
+{
+  "name": "debugctx",
+  "version": "1.0.0",
+  "description": "MCP Server that gives AI full context to fix bugs in one shot",
+  "type": "module",
+  "bin": {
+    "debugctx": "./bin/debugctx.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "debug",
+    "ai",
+    "claude-code",
+    "cursor",
+    "bug-fix"
+  ],
+  "author": "",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.25.23"
+  }
+}
