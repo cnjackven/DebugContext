@@ -16,10 +16,15 @@ DebugContext 是一个 MCP Server，作为 Claude Code、Cursor、Windsurf 等 A
 ## 一行安装
 
 ```bash
-npx debugctx init
+npm install -g debugctx
 ```
 
-自动检测你安装的 AI 工具，写入 MCP 配置和使用规则，重启 AI 工具即可生效。
+搞定。自动检测 AI 工具，全局配置 MCP，重启 AI 工具后所有项目直接生效。
+
+**或在单个项目中配置：**
+```bash
+npx debugctx init
+```
 
 ## 支持的 AI 工具
 
@@ -107,14 +112,14 @@ npx debugctx init --lang en    # 手动指定英文
 }
 ```
 
-各工具配置文件位置：
+各工具配置文件位置（全局安装时自动写入）：
 
 | 工具 | 配置文件 |
 |------|---------|
-| Claude Code | `.mcp.json`（项目根目录） |
-| Cursor | `.cursor/mcp.json` |
-| Windsurf | `.windsurf/mcp.json` |
-| Cline | `.cline/mcp.json` |
+| Claude Code | `~/.claude/mcp.json` |
+| Cursor | `~/.cursor/mcp.json` |
+| Windsurf | `~/.codeium/mcp.json` |
+| Cline | `~/.cline/mcp.json` |
 | Continue | `~/.continue/debugctx.json` |
 
 ## 系统要求

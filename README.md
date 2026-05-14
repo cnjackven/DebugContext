@@ -16,10 +16,15 @@ After:  User pastes error → DebugContext gathers context → AI fixes it corre
 ## Quick Start
 
 ```bash
-npx debugctx init
+npm install -g debugctx
 ```
 
-Automatically detects your installed AI tools, writes MCP config and usage rules. Restart your AI tool and it's ready.
+That's it. Auto-detects your AI tools, configures MCP globally. Restart your AI tool and it works in ALL projects.
+
+**Or run per-project:**
+```bash
+npx debugctx init
+```
 
 ## Supported AI Tools
 
@@ -107,14 +112,14 @@ If auto-detection doesn't work, add the following to your AI tool's MCP config:
 }
 ```
 
-Config file locations per tool:
+Config file locations (global install writes here):
 
 | Tool | Config File |
 |------|-------------|
-| Claude Code | `.mcp.json` (project root) |
-| Cursor | `.cursor/mcp.json` |
-| Windsurf | `.windsurf/mcp.json` |
-| Cline | `.cline/mcp.json` |
+| Claude Code | `~/.claude/mcp.json` |
+| Cursor | `~/.cursor/mcp.json` |
+| Windsurf | `~/.codeium/mcp.json` |
+| Cline | `~/.cline/mcp.json` |
 | Continue | `~/.continue/debugctx.json` |
 
 ## Requirements

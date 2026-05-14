@@ -8,36 +8,75 @@ import { detectLang, getLang, t } from '../src/i18n.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+// On Windows, prefer USERPROFILE (always valid Windows path)
+// HOME in Git Bash is /c/Users/... which breaks path.join on Windows
+const HOME = process.platform === 'win32'
+  ? (process.env.USERPROFILE || process.env.HOME || '')
+  : (process.env.HOME || '');
 
-// ── AI tool definitions ──
-const AI_TOOLS = [
+// ── AI tool definitions (global paths) ──
+const AI_TOOLS_GLOBAL = [
   {
     name: 'Claude Code',
-    detectDir: join(process.env.HOME || process.env.USERPROFILE || '', '.claude'),
+    detectDir: join(HOME, '.claude'),
+    configPath: join(HOME, '.claude', 'mcp.json'),
+    ruleFile: null, // Claude Code uses project-level CLAUDE.md
+  },
+  {
+    name: 'Cursor',
+    detectDir: join(HOME, '.cursor'),
+    configPath: join(HOME, '.cursor', 'mcp.json'),
+    ruleFile: null,
+  },
+  {
+    name: 'Windsurf',
+    detectDir: join(HOME, '.codeium'),
+    configPath: join(HOME, '.codeium', 'mcp.json'),
+    ruleFile: null,
+  },
+  {
+    name: 'Cline',
+    detectDir: join(HOME, '.cline'),
+    configPath: join(HOME, '.cline', 'mcp.json'),
+    ruleFile: null,
+  },
+  {
+    name: 'Continue',
+    detectDir: join(HOME, '.continue'),
+    configPath: join(HOME, '.continue', 'debugctx.json'),
+    ruleFile: null,
+  },
+];
+
+// ── AI tool definitions (project-level, for init command) ──
+const AI_TOOLS_PROJECT = [
+  {
+    name: 'Claude Code',
+    detectDir: join(HOME, '.claude'),
     configPath: '.mcp.json',
     ruleFile: 'CLAUDE.md',
   },
   {
     name: 'Cursor',
-    detectDir: join(process.env.HOME || process.env.USERPROFILE || '', '.cursor'),
+    detectDir: join(HOME, '.cursor'),
     configPath: join('.cursor', 'mcp.json'),
     ruleFile: '.cursorrules',
   },
   {
     name: 'Windsurf',
-    detectDir: join(process.env.HOME || process.env.USERPROFILE || '', '.codeium'),
+    detectDir: join(HOME, '.codeium'),
     configPath: join('.windsurf', 'mcp.json'),
     ruleFile: '.windsurfrules',
   },
   {
     name: 'Cline',
-    detectDir: join(process.env.HOME || process.env.USERPROFILE || '', '.cline'),
+    detectDir: join(HOME, '.cline'),
     configPath: join('.cline', 'mcp.json'),
     ruleFile: null,
   },
   {
     name: 'Continue',
-    detectDir: join(process.env.HOME || process.env.USERPROFILE || '', '.continue'),
+    detectDir: join(HOME, '.continue'),
     configPath: join('.continue', 'debugctx.json'),
     ruleFile: null,
   },
@@ -67,9 +106,10 @@ const command = positional[0];
 if (flags.help || !command) {
   detectLang(flags.lang);
   console.log(`
-DebugContext - 让AI一次修对Bug的MCP工具
+DebugContext - AI修Bug的MCP工具
 
 ${t('cli_help_usage')}:
+  npm install -g debugctx     ${t('cli_help_install')}
   npx debugctx init           ${t('cli_help_init')}
   npx debugctx init --lang zh ${t('cli_help_lang')}
   npx debugctx --help         ${t('cli_help_help')}
@@ -77,7 +117,76 @@ ${t('cli_help_usage')}:
   process.exit(0);
 }
 
-// ── Init command ──
+// ── Setup command (auto-config for postinstall) ──
+if (command === 'setup') {
+  detectLang(flags.lang);
+
+  const serverPath = resolve(__dirname, '..', 'src', 'server.js');
+
+  console.log();
+  console.log('🔍 DebugContext: Auto-configuring AI tools...');
+  console.log();
+
+  const configured = [];
+  const detected = [];
+
+  for (const tool of AI_TOOLS_GLOBAL) {
+    if (!existsSync(tool.detectDir)) continue;
+    detected.push(tool.name);
+
+    const configDir = dirname(tool.configPath);
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+    }
+
+    const mcpConfig = {
+      mcpServers: {
+        debugctx: {
+          command: 'node',
+          args: [serverPath],
+        },
+      },
+    };
+
+    let existingConfig = {};
+    if (existsSync(tool.configPath)) {
+      try {
+        existingConfig = JSON.parse(readFileSync(tool.configPath, 'utf-8'));
+      } catch { /* ignore */ }
+    }
+
+    // Skip if already configured
+    if (existingConfig.mcpServers?.debugctx?.args?.[0] === serverPath) {
+      configured.push(tool.name + ' (already configured)');
+      continue;
+    }
+
+    const merged = {
+      ...existingConfig,
+      mcpServers: {
+        ...existingConfig.mcpServers,
+        ...mcpConfig.mcpServers,
+      },
+    };
+
+    writeFileSync(tool.configPath, JSON.stringify(merged, null, 2) + '\n');
+    configured.push(tool.name);
+  }
+
+  if (detected.length > 0) {
+    console.log('✅ Configured for: ' + configured.join(', '));
+    console.log();
+    console.log('📝 Restart your AI coding tool to activate DebugContext.');
+    console.log('   After restart, it works in ALL your projects automatically.');
+  } else {
+    console.log('ℹ️  No AI tools detected. You can run "npx debugctx init" later.');
+  }
+
+  console.log();
+  process.exit(0);
+}
+
+// ── Init command (project-level config) ──
 if (command === 'init') {
   const lang = flags.lang || null;
   detectLang(lang);
@@ -94,7 +203,7 @@ if (command === 'init') {
   console.log(t('cli_detecting'));
   const detected = [];
 
-  for (const tool of AI_TOOLS) {
+  for (const tool of AI_TOOLS_PROJECT) {
     if (existsSync(tool.detectDir)) {
       detected.push(tool);
       console.log(`  ✓ ${tool.name}`);
@@ -117,7 +226,6 @@ if (command === 'init') {
       mkdirSync(configDir, { recursive: true });
     }
 
-    // Build MCP config JSON
     const mcpConfig = {
       mcpServers: {
         debugctx: {
@@ -134,7 +242,6 @@ if (command === 'init') {
       } catch { /* ignore */ }
     }
 
-    // Merge with existing config
     const merged = {
       ...existingConfig,
       mcpServers: {
@@ -158,14 +265,12 @@ if (command === 'init') {
       const instruction = `\n${marker}\n${t('ai_instruction')}\n${marker}\n`;
 
       if (existingRule.includes(marker)) {
-        // Replace existing instruction
         const newContent = existingRule.replace(
           new RegExp(`${marker}[\\s\\S]*?${marker}`, 'm'),
           instruction.trim()
         );
         writeFileSync(rulePath, newContent);
       } else {
-        // Append instruction
         const newContent = existingRule.trimEnd() + '\n' + instruction;
         writeFileSync(rulePath, newContent);
       }

@@ -12,6 +12,9 @@
     "README.md",
     "LICENSE"
   ],
+  "scripts": {
+    "postinstall": "node bin/debugctx.js setup"
+  },
   "engines": {
     "node": ">=18"
   },
