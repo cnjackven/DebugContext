@@ -23,7 +23,7 @@
     "cursor",
     "bug-fix"
   ],
-  "author": "",
+  "author": "jackven <jackven@qq.com>",
   "license": "GPL-3.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
