@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join, resolve, dirname } from 'node:path';
+import { join, resolve, dirname, basename } from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { detectLang, getLang, t } from '../src/i18n.js';
@@ -20,7 +20,7 @@ const AI_TOOLS_GLOBAL = [
     name: 'Claude Code',
     detectDir: join(HOME, '.claude'),
     configPath: join(HOME, '.claude', 'mcp.json'),
-    ruleFile: null, // Claude Code uses project-level CLAUDE.md
+    ruleFile: join(HOME, '.claude', 'CLAUDE.md'),
   },
   {
     name: 'Cursor',
@@ -155,22 +155,50 @@ if (command === 'setup') {
       } catch { /* ignore */ }
     }
 
-    // Skip if already configured
-    if (existingConfig.mcpServers?.debugctx?.args?.[0] === serverPath) {
-      configured.push(tool.name + ' (already configured)');
-      continue;
+    // Skip MCP config if already configured
+    const mcpAlreadyConfigured = existingConfig.mcpServers?.debugctx?.args?.[0] === serverPath;
+
+    if (!mcpAlreadyConfigured) {
+      const merged = {
+        ...existingConfig,
+        mcpServers: {
+          ...existingConfig.mcpServers,
+          ...mcpConfig.mcpServers,
+        },
+      };
+
+      writeFileSync(tool.configPath, JSON.stringify(merged, null, 2) + '\n');
+      configured.push(tool.name);
     }
 
-    const merged = {
-      ...existingConfig,
-      mcpServers: {
-        ...existingConfig.mcpServers,
-        ...mcpConfig.mcpServers,
-      },
-    };
+    // Write global rule file if applicable (always check, even if MCP was already configured)
+    if (tool.ruleFile) {
+      let existingRule = '';
+      if (existsSync(tool.ruleFile)) {
+        existingRule = readFileSync(tool.ruleFile, 'utf-8');
+      }
 
-    writeFileSync(tool.configPath, JSON.stringify(merged, null, 2) + '\n');
-    configured.push(tool.name);
+      const marker = '<!-- debugctx -->';
+      const instruction = `\n${marker}\n${t('ai_instruction')}\n${marker}\n`;
+
+      if (existingRule.includes(marker)) {
+        const newContent = existingRule.replace(
+          new RegExp(`${marker}[\\s\\S]*?${marker}`, 'm'),
+          instruction.trim()
+        );
+        writeFileSync(tool.ruleFile, newContent);
+      } else {
+        const newContent = existingRule.trimEnd() + '\n' + instruction;
+        writeFileSync(tool.ruleFile, newContent);
+      }
+      if (!mcpAlreadyConfigured) {
+        console.log(`  📝 ${tool.name}: wrote rule file (${basename(tool.ruleFile)})`);
+      }
+    }
+
+    if (mcpAlreadyConfigured && !tool.ruleFile) {
+      configured.push(tool.name + ' (already configured)');
+    }
   }
 
   if (detected.length > 0) {
